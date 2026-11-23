@@ -12,19 +12,18 @@ Nivå og tema ligger i arket `Oppsett`. Endrer du poeng, fasit, nivå eller tema
 
 **Elevfilen** er én HTML-fil du deler ut. Eleven åpner den på egen enhet, går gjennom én oppgave om gangen, sammenligner med løsningsforslaget, gir seg selv poeng, krysser av for hvor godt utregningen er vist, og gjetter på vanskegrad før fasiten vises. Til slutt kommer en oppsummering med poeng per tema og nivå, karaktergrensene, og et felt der eleven setter sin egen karakter. Den kan skrives ut eller lastes ned.
 
-## Automatisk innlesing og løsningsforslag
+## To utgaver
 
-Siden kan lese inn et oppgavesett fra PDF eller Word og lage fasit og løsningsforslag selv. Det krever en språkmodell, og den kommer fra ett av to steder:
+| | Denne nettsiden | Claude-utgaven |
+|---|---|---|
+| Innlogging | Ingen | Krever Claude-konto |
+| Legge inn oppgaver | Manuelt, eller fra prøvefil | Leser inn PDF og Word automatisk |
+| Fasit og løsningsforslag | Skrives for hånd | Lages automatisk, steg for steg |
+| Utklipp av oppgaven | Fra prøvefil | Klippes ut av PDF-en |
+| Excel-retteskjema | Ja | Ja |
+| Elevfil | Ja | Ja |
 
-**Skolens egen tjeneste.** Skolen setter opp en liten mellomtjeneste med én API-nøkkel, beskrevet i [OPPSETT.md](OPPSETT.md). Lærerne limer inn adressen og passordet de har fått, øverst i steg 3, og trykker «Koble til». Det gjøres én gang per maskin. Da virker alt, uten at noen trenger egen konto.
-
-**Claude.** Åpnes den samme siden som artefakt inne i Claude, brukes lærerens egen Claude-konto i stedet, og felt for adresse og passord vises ikke.
-
-Uten noen av delene virker siden fortsatt: du legger inn oppgavene manuelt, eller åpner en prøvefil fra en kollega, og lager retteskjema og elevfil som vanlig.
-
-## Dele en ferdig prøve
-
-Når flere lærere har samme prøve, trenger bare én å gjøre forarbeidet. Den læreren leser inn oppgavesettet, lager fasit og løsningsforslag, og lagrer en **prøvefil** med knappen «Lagre prøvefil». De andre åpner siden, velger «Åpne prøvefil», og lager sitt eget retteskjema for sin egen klasse. Prøvefilen inneholder oppgaver, nivå, tema, fasit, løsningsforslag og utklippsbilder.
+Den enkleste arbeidsmåten når flere lærere deler en prøve: én lærer forbereder prøven i Claude-utgaven, leser inn oppgavesettet, lager fasit og løsningsforslag, og lagrer en **prøvefil** med knappen «Lagre prøvefil». De andre åpner nettsiden, velger «Åpne prøvefil», og lager sitt eget retteskjema for sin egen klasse. Prøvefilen inneholder oppgaver, nivå, tema, fasit, løsningsforslag og utklippsbilder.
 
 ## Slik bruker du den
 
@@ -50,9 +49,5 @@ Fire statiske filer uten byggesteg eller avhengigheter:
 | `app.js` | Logikken: oppgaver, tema, innlesing, løsningsforslag, eksport |
 | `gen.js` | Bygger Excel-filen (OOXML) direkte, uten bibliotek |
 | `elev-mal.js` | Malen for elevfilen, med egenvurderingen |
-| `worker.js` | Mellomtjenesten for Cloudflare Workers |
-| `netlify/edge-functions/claude.js` | Den samme tjenesten for Netlify Edge Functions |
-
-Mellomtjenesten holder API-nøkkelen skjult og kjører hos Cloudflare eller Netlify, aldri i nettsiden. Du trenger bare én av de to.
 
 Elevfilen bygges ved at malen fylles med prøvedataene og lagres som én selvstendig HTML-fil.
