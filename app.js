@@ -382,14 +382,103 @@
   /* ---------- les inn oppgavesett med Claude ---------- */
   let sample = null, aiCtl = null;
   const iClaude = !!(window.claude && typeof window.claude.use === "function");
+
+  /* ----- mellomtjeneste med skolens API-nøkkel (brukes når siden kjører utenfor Claude) ----- */
+  const TJ = "retteskjema.tjeneste";
+  function lesTjeneste() { try { return JSON.parse(localStorage.getItem(TJ)) || null; } catch (e) { return null; } }
+  function lagProxySample(url, passord) {
+    const feilKode = st => st === 401 ? "not_granted" : st === 429 ? "rate_limited" : st === 413 ? "prompt_too_large" : "upstream_error";
+    async function base64(blob) {
+      const d = await new Promise((ok, nei) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = nei; r.readAsDataURL(blob); });
+      return { media_type: (String(d).match(/^data:([^;]+)/) || [])[1] || "image/jpeg", data: String(d).split(",")[1] };
+    }
+    async function kall(prompt, opts) {
+      opts = opts || {};
+      const innhold = [];
+      for (const b of [].concat(opts.images || [])) {
+        const { media_type, data } = await base64(b);
+        innhold.push({ type: "image", source: { type: "base64", media_type, data } });
+      }
+      innhold.push({ type: "text", text: String(prompt) });
+      let r;
+      try {
+        r = await fetch(url, {
+          method: "POST", signal: opts.signal,
+          headers: { "content-type": "application/json", "x-passord": passord },
+          body: JSON.stringify({ tier: opts.modelTier === "complex" ? "complex" : "default", max_tokens: 8000, messages: [{ role: "user", content: innhold }] }),
+        });
+      } catch (e) {
+        if (e && e.name === "AbortError") throw { code: "cancelled", message: "avbrutt" };
+        throw { code: "upstream_error", message: "Fikk ikke kontakt med tjenesten. Kontroller adressen." };
+      }
+      if (!r.ok) {
+        let d = ""; try { d = (await r.json()).feil || ""; } catch (e) { }
+        throw { code: feilKode(r.status), message: d || ("Tjenesten svarte " + r.status) };
+      }
+      const leser = r.body.getReader(), dek = new TextDecoder();
+      let buffer = "", tekst = "", stopp = "";
+      for (; ;) {
+        const { done, value } = await leser.read();
+        if (done) break;
+        buffer += dek.decode(value, { stream: true });
+        const biter = buffer.split("\n");
+        buffer = biter.pop();
+        for (const linje of biter) {
+          if (!linje.startsWith("data:")) continue;
+          let h; try { h = JSON.parse(linje.slice(5).trim()); } catch (e) { continue; }
+          if (h.type === "content_block_delta" && h.delta && typeof h.delta.text === "string") { tekst += h.delta.text; if (opts.onText) opts.onText({ text: tekst, delta: h.delta.text }); }
+          else if (h.type === "message_delta" && h.delta && h.delta.stop_reason) stopp = h.delta.stop_reason;
+          else if (h.type === "error") throw { code: (h.error && h.error.type) === "rate_limit_error" ? "rate_limited" : "upstream_error", message: (h.error && h.error.message) || "Feil fra Anthropic" };
+        }
+      }
+      if (!tekst.trim()) throw { code: "empty_completion", message: "Tomt svar" };
+      return { text: tekst, truncated: stopp === "max_tokens" };
+    }
+    const sample = async (p, o) => kall(p, o);
+    sample.json = async (p, o) => {
+      const { text, truncated } = await kall(p, o);
+      const kandidater = [text];
+      const gjerde = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (gjerde) kandidater.push(gjerde[1]);
+      const i = text.search(/[{[]/), j = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+      if (i >= 0 && j > i) kandidater.push(text.slice(i, j + 1));
+      for (const k of kandidater) { try { return JSON.parse(k.trim()); } catch (e) { } }
+      throw { code: "invalid_json", message: truncated ? "Svaret ble kuttet." : "Svaret kunne ikke tolkes.", text };
+    };
+    sample.limits = async () => ({ maxPromptBytes: 262144, images: { maxCount: 5, maxInputBytes: 9e6, mediaTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"] } });
+    return sample;
+  }
+  function settTjenesteFelt() {
+    const t = lesTjeneste();
+    $("tjenesteRad").hidden = iClaude;
+    if (iClaude) return;
+    $("tjenesteUrl").value = t ? t.url : "";
+    $("tjenestePassord").value = t ? t.passord : "";
+    $("tjenesteKnapp").textContent = t ? "Koble fra" : "Koble til";
+  }
+  async function koble() {
+    if (lesTjeneste()) { localStorage.removeItem(TJ); sample = null; settTjenesteFelt(); settAiStatus(); renderLos(); return; }
+    const url = $("tjenesteUrl").value.trim(), passord = $("tjenestePassord").value.trim();
+    if (!url || !passord) { settAiStatus("Skriv inn både adressen til tjenesten og passordet du har fått."); return; }
+    if (!/^https:\/\/\S+$/.test(url) && !/^http:\/\/localhost(:\d+)?(\/|$)/.test(url)) { settAiStatus("Adressen må begynne med https://"); return; }
+    settAiStatus("Kobler til …");
+    const prove = lagProxySample(url, passord);
+    try {
+      await prove("Svar med ordet klar.", { modelTier: "default" });
+      try { localStorage.setItem(TJ, JSON.stringify({ url, passord })); } catch (e) { }
+      sample = prove; settTjenesteFelt(); settAiStatus("Koblet til. Innlesing og løsningsforslag virker nå."); renderLos();
+    } catch (e) {
+      sample = null; settAiStatus((e && e.message) || "Fikk ikke kontakt med tjenesten.");
+    }
+  }
   function settAiStatus(tekst) {
     const av = !sample;
     $("aiFile").disabled = av;
     $("aiKnapp").classList.toggle("av", av);
     $("aiStatus").textContent = tekst != null ? tekst
-      : !av ? "Claude leser dokumentet noen sider om gangen og foreslår oppgaver, poeng, nivå og tema. Et sett på 12 sider tar noen minutter. Du kontrollerer og retter etterpå."
+      : !av ? "Leser dokumentet noen sider om gangen og foreslår oppgaver, poeng, nivå og tema. Et sett på 12 sider tar noen minutter. Du kontrollerer og retter etterpå."
         : iClaude ? "Claude svarte ikke da siden ble lastet, så innlesing er ikke tilgjengelig nå. Last siden på nytt, så kobler den til igjen."
-          : "Denne utgaven kjører utenfor Claude, så innlesing av oppgavesett finnes ikke her. Legg inn oppgavene under, eller åpne en prøvefil du har fått.";
+          : "Koble til skolens tjeneste over for å lese inn oppgavesett og lage løsningsforslag. Uten den legger du inn oppgavene manuelt, eller åpner en prøvefil du har fått.";
   }
   function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("script")); document.head.appendChild(s); }); }
   async function readPdf(file, wantImages, onPage) {
@@ -737,7 +826,7 @@ Teksten:${tekst}`;
     $("losTall").innerHTML = !os.length ? "Legg til oppgaver først."
       : `<b>${med}</b> av <b>${os.length}</b> oppgaver har løsningsforslag, <b>${ok}</b> er godkjent av deg.`
       + (utenTekst ? ` <b>${utenTekst}</b> mangler oppgavetekst.` : "")
-      + (sample ? "" : iClaude ? " Claude er ikke tilgjengelig nå, så forslag må skrives for hånd." : " Denne utgaven kjører utenfor Claude, så forslagene må lages i Claude-utgaven, eller skrives for hånd i panelet under hver oppgave.");
+      + (sample ? "" : iClaude ? " Claude er ikke tilgjengelig nå, så forslag må skrives for hånd." : " Koble til skolens tjeneste i steg 3 for å lage forslag automatisk, eller skriv dem for hånd i panelet under hver oppgave.");
     $("btnGenAlle").disabled = !sample || !os.length;
     $("btnElevfil").disabled = !os.length;
   }
@@ -826,6 +915,13 @@ ${JSON.stringify(data, null, 1)}`, { signal: genCtl.signal, cache: false, modelT
   /* ---------- start ---------- */
   renderAll();
   use("downloads").then(d => { downloads = d; });
-  use("sample").then(s => { sample = s; settAiStatus(); if (s && !state.test.oppgaver.length) renderTasks(); renderLos(); });
+  settTjenesteFelt();
+  $("tjenesteKnapp").onclick = koble;
+  if (iClaude) use("sample").then(s => { sample = s; settAiStatus(); if (s && !state.test.oppgaver.length) renderTasks(); renderLos(); });
+  else {
+    const t = lesTjeneste();
+    if (t) sample = lagProxySample(t.url, t.passord);
+    settAiStatus(); renderLos();
+  }
   initDb();
 })();
