@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retteskjema-generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: én kolonne med fire nummererte arbeidssteg; oppgavetabellen er hovedflaten. */
+  --bg:#F3F5F2; --surface:#FFFFFF; --ink:#1B2A2F; --muted:#5A6A6F; --line:#D3DAD6; --accent:#1F5F7A; --accent-ink:#FFFFFF;
+  --soft:#E9EEEB; --del1:#DCE6F2; --del2:#FCE8D5;
+  --good:#2E7D4F; --good-bg:#C9EBCF; --warn:#8A6500; --warn-bg:#FFE99A; --bad:#A9322B; --bad-bg:#F8C4C4;
+  --display:"Bricolage Grotesque","Trebuchet MS",sans-serif; --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --bg:#11181A; --surface:#1A2326; --ink:#E5ECEA; --muted:#9BA9A9; --line:#303D40; --accent:#74B9D3; --accent-ink:#0D1A1F;
+    --soft:#222D30; --del1:#23384D; --del2:#4A3520;
+    --good:#7FD19C; --good-bg:#1F4A30; --warn:#F0CF6A; --warn-bg:#4D3F10; --bad:#F09A93; --bad-bg:#552622; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --bg:#11181A; --surface:#1A2326; --ink:#E5ECEA; --muted:#9BA9A9; --line:#303D40; --accent:#74B9D3; --accent-ink:#0D1A1F;
+  --soft:#222D30; --del1:#23384D; --del2:#4A3520;
+  --good:#7FD19C; --good-bg:#1F4A30; --warn:#F0CF6A; --warn-bg:#4D3F10; --bad:#F09A93; --bad-bg:#552622; }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 64px;display:flex;flex-direction:column;gap:20px}
+h1{font:700 30px/1.15 var(--display);margin:0;text-wrap:balance}
+h2{font:600 19px/1.2 var(--display);margin:0;text-wrap:balance}
+h3{font:600 14px/1.3 var(--body);margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+p{margin:0}
+.lead{color:var(--muted);max-width:65ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.step{font:700 13px/1 var(--display);background:var(--accent);color:var(--accent-ink);border-radius:999px;width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1 1 220px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+input:focus-visible,button:focus-visible,.file:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+button{font:500 14px/1.2 var(--body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.big{padding:12px 18px;font-size:16px}
+button.ghost{background:transparent}
+button.icon{padding:4px 7px;line-height:1;background:transparent;border-color:transparent;color:var(--muted)}
+button.icon:hover{color:var(--bad);border-color:var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.file{position:relative;display:inline-flex}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.file.av span{opacity:.5}
+.file.av input{cursor:default}
+.file span{font:500 14px/1.2 var(--body);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.note{font-size:13px;color:var(--muted)}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-weight:500}
+.banner button{margin-left:auto}
+.msg{font-size:14px;padding:8px 12px;border-radius:6px;background:var(--soft)}
+.msg.ok{background:var(--good-bg);color:var(--good)} .msg.err{background:var(--bad-bg);color:var(--bad)}
+.msg:empty{display:none}
+
+/* tema */
+.temaer{display:flex;flex-wrap:wrap;gap:8px}
+.tema{display:flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;background:var(--surface)}
+.tema input{border:0;padding:4px 0;background:transparent;width:auto;field-sizing:content;min-width:6ch;max-width:30ch}
+.tema small{color:var(--muted);padding:0 6px;white-space:nowrap}
+
+/* oppgavetabell */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%}
+.tasks th{font:600 12px/1.3 var(--body);text-align:left;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:8px;background:var(--soft);white-space:nowrap}
+.tasks td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:middle}
+.tasks tr.d1 td:first-child{box-shadow:inset 4px 0 0 var(--del1)} .tasks tr.d2 td:first-child{box-shadow:inset 4px 0 0 var(--del2)}
+.tasks tr.d2{background:color-mix(in srgb,var(--del2) 22%,transparent)}
+.tasks input.nr{width:62px;font-weight:600} .tasks input.maks{width:58px;text-align:center} .tasks input.fasit{min-width:110px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:6px 9px;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.seg.niva button[aria-pressed=true][data-v=Lav]{background:var(--good-bg);color:var(--good)}
+.seg.niva button[aria-pressed=true][data-v=Middels]{background:var(--warn-bg);color:var(--warn)}
+.seg.niva button[aria-pressed=true][data-v="Høy"]{background:var(--bad-bg);color:var(--bad)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;min-width:220px}
+.chip{border-radius:999px;padding:3px 9px;font-size:12.5px;background:transparent;color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.empty{color:var(--muted);padding:14px;text-align:center}
+button.st{font-size:12px;padding:4px 9px;border-radius:999px;margin-right:6px;white-space:nowrap}
+button.st.mangler{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+button.st.utkast{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+button.st.godkjent{background:var(--good-bg);color:var(--good);border-color:transparent}
+tr.detail td{background:var(--soft);border-top:0;padding:0 8px 12px}
+.det{display:flex;flex-direction:column;gap:10px;max-width:900px;padding-top:4px}
+textarea{font:inherit;font-size:14px;line-height:1.5;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;resize:vertical}
+.chk{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500}
+.utklipp{display:flex;flex-direction:column;gap:6px}
+.utklipp img{max-width:100%;max-height:320px;object-fit:contain;object-position:left top;border:1px solid var(--line);border-radius:6px;background:#fff}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+
+/* oppsummering */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.tile b{display:block;font:700 22px/1.1 var(--display)} .tile span{font-size:12.5px;color:var(--muted)}
+.bars{display:grid;grid-template-columns:minmax(120px,max-content) 1fr max-content;gap:6px 10px;align-items:center;font-size:13.5px}
+.bar{height:10px;border-radius:5px;background:var(--soft);overflow:hidden} .bar i{display:block;height:100%;background:var(--accent)}
+.warns{display:flex;flex-direction:column;gap:6px}
+.warns div{font-size:13.5px;padding:6px 10px;border-left:4px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:0 6px 6px 0}
+
+/* forhåndsvisning */
+.prev td,.prev th{border:1px solid var(--line);padding:4px 8px;text-align:center;font-size:12.5px;white-space:nowrap;font-weight:400}
+.prev th{font-weight:600} .prev .d1{background:var(--del1)} .prev .d2{background:var(--del2)} .prev .s{background:var(--soft)}
+.prev .l{text-align:left;font-weight:600;background:var(--soft)} .prev .g{background:var(--good-bg);color:var(--good)} .prev .y{background:var(--warn-bg);color:var(--warn)} .prev .r{background:var(--bad-bg);color:var(--bad)}
+.prev .fas{font-style:italic;color:var(--muted);font-size:11.5px} .prev .dim{color:var(--muted)}
+
+.klasse{display:grid;grid-template-columns:minmax(120px,220px) 110px max-content;gap:10px;align-items:end}
+.grenser{display:flex;flex-wrap:wrap;gap:10px}
+.grenser label{width:84px}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px}
+.list>div{display:flex;gap:10px;align-items:center;padding:8px 12px;flex-wrap:wrap}
+.list>div+div{border-top:1px solid var(--line)}
+.list .n{font-weight:600;flex:1 1 200px} .list small{color:var(--muted)}
+@media (max-width:520px){ h1{font-size:24px} .klasse{grid-template-columns:1fr 90px max-content} }
+@media (prefers-reduced-motion:no-preference){ button{transition:border-color .12s} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Retteskjema-generator</h1>
+    <p class="lead">Legg inn oppgavene, merk nivå og tema, og last ned et ferdig Excel-retteskjema for klassen din. Alle summer, farger, karakterer, elevark og statistikk lages automatisk.</p>
+  </header>
+
+  <div class="banner" id="exBanner" hidden><span>Dette er en eksempelprøve. Bytt den ut med din egen.</span><button id="btnNew2" type="button">Tøm og start ny prøve</button></div>
+  <div class="banner" id="undoBar" hidden><span id="undoText"></span><button id="btnUndo" type="button">Angre</button></div>
+
+  <section class="card" aria-labelledby="h-prove">
+    <div class="head"><span class="step">1</span><h2 id="h-prove">Prøven</h2></div>
+    <div class="row">
+      <label class="f grow">Navn på prøven<input type="text" id="navn" autocomplete="off"></label>
+    </div>
+    <div class="row">
+      <button type="button" id="btnNew">Ny tom prøve</button>
+      <button type="button" id="btnSaveFile">Lagre prøvefil</button>
+      <label class="file"><span>Åpne prøvefil</span><input type="file" id="openFile" accept=".json,application/json"></label>
+      <button type="button" id="btnShare" class="primary" hidden>Lagre i delte prøver</button>
+    </div>
+    <div id="sharedBox" hidden style="flex-direction:column;gap:8px">
+      <h3>Delte prøver</h3>
+      <div class="list" id="sharedList"></div>
+      <p class="note">Alle som har tilgang til denne siden kan åpne en delt prøve og lage retteskjema for sin egen klasse. Prøvefilen kan også sendes til kolleger som ikke har tilgang.</p>
+    </div>
+    <div class="msg" id="msgProve" role="status"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-tema">
+    <div class="head"><span class="step">2</span><h2 id="h-tema">Tema</h2><span class="note">En oppgave kan telle på flere tema.</span></div>
+    <div class="temaer" id="temaer"></div>
+    <form class="row" id="temaForm">
+      <label class="f grow">Nytt tema<input type="text" id="nyttTema" placeholder="f.eks. Likninger" autocomplete="off"></label>
+      <button type="submit" style="align-self:flex-end">Legg til tema</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="h-oppg">
+    <div class="head"><span class="step">3</span><h2 id="h-oppg">Oppgaver</h2><span class="note">Del 1 uten hjelpemidler, del 2 med kalkulator.</span></div>
+    <div class="row" id="aiRow">
+      <label class="file" id="aiKnapp"><span id="aiLabel">Les inn oppgavesett (PDF, Word eller bilde)</span><input type="file" id="aiFile" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp" disabled></label>
+      <span class="seg" id="aiModus" role="group" aria-label="Hva skjer med oppgavene som alt står i listen" hidden>
+        <button type="button" data-v="ny" aria-pressed="true">Erstatt listen</button>
+        <button type="button" data-v="legg" aria-pressed="false">Legg til</button>
+        <button type="button" data-v="del2" aria-pressed="false">Legg til som del 2</button>
+      </span>
+      <button type="button" id="aiStop" hidden>Stopp</button>
+      <span class="note" id="aiStatus">Kobler til Claude …</span>
+          </div>
+    <div class="msg" id="msgAi" role="status"></div>
+    <div class="scroll">
+      <table class="tasks">
+        <thead><tr><th>Oppgave</th><th>Del</th><th>Maks</th><th>Fasit</th><th>Nivå</th><th>Tema</th><th><span style="position:absolute;left:-9999px">Handlinger</span></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <form class="row" id="addForm">
+      <label class="f grow">Legg til oppgaver (flere på én gang, med mellomrom)<input type="text" id="addNr" placeholder="f.eks. 5a 5b 5c 6" autocomplete="off"></label>
+      <label class="f" style="width:150px">Del<span class="seg" id="addDel"><button type="button" data-v="1" aria-pressed="true">Del 1</button><button type="button" data-v="2" aria-pressed="false">Del 2</button></span></label>
+      <label class="f" style="width:80px">Poeng<input type="text" id="addMaks" value="1" inputmode="decimal" autocomplete="off"></label>
+      <button type="submit" class="primary" style="align-self:flex-end">Legg til</button>
+      <button type="button" id="btnSorter" style="align-self:flex-end">Sorter oppgavene</button>
+    </form>
+    <form class="row" id="del2Form">
+      <label class="f" style="width:190px">Del 2 fra og med oppgave<input type="text" id="del2Nr" placeholder="f.eks. 6 eller 1a" autocomplete="off"></label>
+      <button type="submit" style="align-self:flex-end">Flytt til del 2</button>
+      <span class="note">Flytter den oppgaven og alle etter den over i del 2.</span>
+    </form>
+    <div class="tiles" id="tiles"></div>
+    <div class="bars" id="bars"></div>
+    <div class="warns" id="warns"></div>
+    <hr style="border:0;border-top:1px solid var(--line);width:100%;margin:2px 0">
+    <h3>Fasit og løsningsforslag</h3>
+    <p id="losTall" class="note"></p>
+    <div class="row">
+      <button type="button" id="btnGenAlle">Lag fasit og løsningsforslag der det mangler</button>
+      <button type="button" id="btnGenMangler" class="ghost">Lag på nytt for alle</button>
+      <button type="button" id="btnGenStop" hidden>Stopp</button>
+    </div>
+    <p class="note">Fasiten regnes ut sammen med løsningsforslaget, så de stemmer overens, og den fylles inn i Fasit-feltet over og havner i retteskjemaet. Forslagene kan inneholde regnefeil, og figurer blir ofte gjengitt dårlig. Åpne en oppgave med knappen «Løsning» i listen over, rett det som er galt, og huk av for godkjent.</p>
+    <div class="msg" id="msgLos" role="status"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-klasse">
+    <div class="head"><span class="step">4</span><h2 id="h-klasse">Klasse og nedlasting</h2></div>
+    <div id="klasser" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="row"><button type="button" id="btnAddKlasse">Legg til en klasse til</button><span class="note">Hver klasse får sitt eget ark i samme fil, og statistikken viser klassene samlet.</span></div>
+    <div>
+      <h3 style="margin-bottom:8px">Karaktergrenser, prosent fra og med</h3>
+      <div class="grenser" id="grenser"></div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">Slik blir retteskjemaet</h3>
+      <div class="scroll"><table class="prev" id="prev"></table></div>
+      <p class="note" style="margin-top:8px">Full pott står ferdig utfylt. Skriv navnet, trykk pil høyre, og skriv bare inn der eleven har færre poeng. Rader uten navn telles ikke med i statistikken.</p>
+    </div>
+    <div class="row">
+      <button type="button" id="btnXlsx" class="primary big">Last ned retteskjema (Excel)</button>
+    </div>
+    <div class="msg" id="msgXlsx" role="status"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-los">
+    <div class="head"><span class="step">5</span><h2 id="h-los">Elevfil med egenvurdering</h2></div>
+    <p class="lead">Elevene får en fil de åpner på egen enhet, klikker seg gjennom oppgave for oppgave, sammenligner med løsningsforslaget fra steg 3, gir seg selv poeng og setter sin egen karakter. Ingenting lagres på nett, og oppsummeringen laster de ned til slutt.</p>
+    <div class="row"><button type="button" id="btnElevfil" class="primary big">Last ned elevfil (HTML)</button></div>
+    <div class="msg" id="msgElev" role="status"></div>
+    <p class="note">Del filen i Teams. Elevene må laste den ned og åpne den, siden Teams viser HTML-filer som nedlasting. Filen inneholder oppgavetekst, løsningsforslag, nivå og tema, men ingen elevdata.</p>
+  </section>
+</div>
+<script src="gen.js"></script>
+<script src="elev-mal.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
