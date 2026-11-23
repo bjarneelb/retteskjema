@@ -166,6 +166,11 @@ textarea{font:inherit;font-size:14px;line-height:1.5;color:var(--ink);background
 
   <section class="card" aria-labelledby="h-oppg">
     <div class="head"><span class="step">3</span><h2 id="h-oppg">Oppgaver</h2><span class="note">Del 1 uten hjelpemidler, del 2 med kalkulator.</span></div>
+    <div class="row" id="tjenesteRad" hidden>
+      <label class="f grow" style="max-width:360px">Adresse til skolens tjeneste<input type="text" id="tjenesteUrl" placeholder="https://..." autocomplete="off" spellcheck="false"></label>
+      <label class="f" style="width:170px">Passord<input type="password" id="tjenestePassord" autocomplete="off"></label>
+      <button type="button" id="tjenesteKnapp" style="align-self:flex-end">Koble til</button>
+    </div>
     <div class="row" id="aiRow">
       <label class="file" id="aiKnapp"><span id="aiLabel">Les inn oppgavesett (PDF, Word eller bilde)</span><input type="file" id="aiFile" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp" disabled></label>
       <span class="seg" id="aiModus" role="group" aria-label="Hva skjer med oppgavene som alt står i listen" hidden>
