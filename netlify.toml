@@ -1,0 +1,11 @@
+# Netlify serverer nettsiden fra rota av repoet, og mellomtjenesten
+# fra netlify/edge-functions/claude.js på /api/claude.
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"

@@ -50,6 +50,9 @@ Fire statiske filer uten byggesteg eller avhengigheter:
 | `app.js` | Logikken: oppgaver, tema, innlesing, løsningsforslag, eksport |
 | `gen.js` | Bygger Excel-filen (OOXML) direkte, uten bibliotek |
 | `elev-mal.js` | Malen for elevfilen, med egenvurderingen |
-| `worker.js` | Mellomtjenesten som holder API-nøkkelen skjult (kjører i Cloudflare, ikke i nettsiden) |
+| `worker.js` | Mellomtjenesten for Cloudflare Workers |
+| `netlify/edge-functions/claude.js` | Den samme tjenesten for Netlify Edge Functions |
+
+Mellomtjenesten holder API-nøkkelen skjult og kjører hos Cloudflare eller Netlify, aldri i nettsiden. Du trenger bare én av de to.
 
 Elevfilen bygges ved at malen fylles med prøvedataene og lagres som én selvstendig HTML-fil.
